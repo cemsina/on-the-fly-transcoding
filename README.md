@@ -1,1 +1,1 @@
-# on-the-fly-transcoding
+# On-the-fly Transcoding CDN Friendly Structure
