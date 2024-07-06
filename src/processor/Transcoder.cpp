@@ -219,6 +219,7 @@ std::vector<char> Transcoder::transcodeSegment(const Job &job) const {
     avformat_free_context(outputFormatContext);
     return outputBuffer;
 }
+
 std::vector<char> Transcoder::transcodeInit(const Job &job) const {
     std::vector<char> outputBuffer;
 
