@@ -13,6 +13,7 @@ import (
 func RouteHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS, HEAD")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	// Define regex patterns for the routes
 	segmentPattern := regexp.MustCompile(`^/([^/]+)/combined/(\d+)/(\d+x\d+)/(\d+(\.\d+)?:\d+(\.\d+)?)/segment\.(ts|mp4)$`)
 	videoInitPattern := regexp.MustCompile(`^/([^/]+)/video/(\d+)/(\d+x\d+)/init\.mp4$`)
