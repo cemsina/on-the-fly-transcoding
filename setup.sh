@@ -24,7 +24,8 @@ sudo apt-get install -y \
     libopus-dev \
     libvpx-dev \
     libssl-dev \
-    pkg-config
+    pkg-config \
+    gpac
 
 # Install FFmpeg
 mkdir -p ~/ffmpeg_sources

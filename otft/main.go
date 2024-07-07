@@ -11,6 +11,8 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+	InitProfiles()
+	PreparePatterns()
 	http.HandleFunc("/", RouteHandler)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

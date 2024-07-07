@@ -44,21 +44,51 @@ func Transcode(job Job) (string, error) {
 
 	args := []string{
 		"-i", job.URL,
-		"-vf", fmt.Sprintf("scale=%d:%d", job.Width, job.Height),
-		"-b:v", fmt.Sprintf("%dk", job.Bitrate),
-		"-r", fmt.Sprintf("%f", job.FPS),
+		"-preset", "ultrafast",
+		"-vf", fmt.Sprintf("scale=%d:%d", job.Profile.Width, job.Profile.Height),
+		"-b:v", fmt.Sprintf("%dk", job.Profile.VideoBitrate),
+		"-b:a", fmt.Sprintf("%dk", job.Profile.AudioBitrate),
+		"-r", fmt.Sprintf("%f", job.Profile.FPS),
+		"-pix_fmt", "yuv420p",
 		"-ac", "2",
-		"-ar", "44100",
-		"-c:v", job.VideoCodec,
-		"-c:a", job.AudioCodec,
-		"-ss", fmt.Sprintf("%f", job.Start),
-		"-t", fmt.Sprintf("%f", job.Duration),
+		"-ar", fmt.Sprintf("%d", job.Profile.AudioSample),
+		"-c:v", job.Profile.VideoCodec,
+		"-c:a", job.Profile.AudioCodec,
 	}
 
-	if job.Format == MPEGTS {
-		args = append(args, "-f", "mpegts", outputFile)
+	initSegment := true
+	if job.Start >= 0 {
+		args = append(args, "-ss", fmt.Sprintf("%f", job.Start))
+		initSegment = false
+	}
+
+	if job.Duration >= 0 {
+		args = append(args, "-t", fmt.Sprintf("%f", job.Duration))
+	}
+
+	if initSegment && job.Format == MP4 {
+		args = append(args, "-movflags", "+faststart")
+	}
+
+	if !initSegment && job.Fragmented && job.Format == MP4 {
+		args = append(args, "-movflags", "+frag_keyframe+empty_moov")
+	}
+
+	if !initSegment {
+		if job.Format == MPEGTS {
+			args = append(args, "-f", "mpegts", outputFile)
+		} else {
+			args = append(args, "-f", "mp4", outputFile)
+		}
 	} else {
-		args = append(args, outputFile)
+		args = append(args, "-t", fmt.Sprintf("%f", 0.1))
+		args = append(args, "-f", "mp4", outputFile)
+	}
+
+	if job.Media == AUDIO {
+		args = append([]string{"-vn"}, args...)
+	} else if job.Media == VIDEO {
+		args = append([]string{"-an"}, args...)
 	}
 
 	cmd := exec.Command("ffmpeg", args...)

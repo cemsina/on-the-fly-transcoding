@@ -10,15 +10,15 @@
 
     <div>
         <label for="">Ad URL</label>
-        <input type="text" id="ad-url">
+        <input type="text" id="ad-url" value="https://orange-space-orbit-97pg54j6wgrhxgq4-3000.app.github.dev/out/ad.mp4">
     </div>
     <div>
-        <label for="">Dimensions</label>
-        <select id="dimensions">
-            <option value="320x180">320x180</option>
-            <option value="640x360">640x360</option>
-            <option value="1280x720">1280x720</option>
-            <option value="1920x1080">1920x1080</option>
+        <label for="">Profiles</label>
+        <select id="profiles">
+            <option value="720p">720p</option>
+            <option value="480p">480p</option>
+            <option value="360p">360p</option>
+            <option value="240p">240p</option>
         </select>
     </div>
     <div>
@@ -37,18 +37,13 @@
         const video = document.getElementById('video');
 
         function play() {
-            const dimensions = document.getElementById('dimensions').value;
-            const bitrates = {
-                "320x180": 200000,
-                "640x360": 400000,
-                "1280x720": 800000,
-                "1920x1080": 2000000,
-            };
+            const profile = document.getElementById('profiles').value;
+            
             const adUrl = document.getElementById('ad-url').value;
             const start = document.getElementById('start-input').value;
             const duration = document.getElementById('duration-input').value;
 
-            const url = `${API}/${btoa(adUrl)}/combined/${bitrates[dimensions]}/${dimensions}/${start}:${duration}/segment.mp4`;
+            const url = `${API}/${btoa(adUrl)}/combined/${profile}/${start}:${duration}/full.mp4`;
             video.src = url;
             video.play();
         }

@@ -10,8 +10,8 @@ import (
 type Format int
 
 const (
-	MPEG4 Format = iota
-	MPEGTS
+	MPEGTS Format = iota
+	MP4
 )
 
 // Media enum
@@ -25,22 +25,18 @@ const (
 
 type Job struct {
 	URL        string
-	Bitrate    int
-	Width      int
-	Height     int
-	FPS        float64
+	Profile    Profile
 	Start      float64
 	Duration   float64
 	Media      Media
 	Format     Format
-	VideoCodec string
-	AudioCodec string
+	Fragmented bool
 }
 
 func (job *Job) ID() string {
-	data := fmt.Sprintf("%s-%d-%d-%d-%f-%f-%f-%d-%d-%s-%s",
-		job.URL, job.Bitrate, job.Width, job.Height, job.FPS,
-		job.Start, job.Duration, job.Media, job.Format, job.VideoCodec, job.AudioCodec)
+	data := fmt.Sprintf("%s-%s-%f-%f-%d-%d-%t",
+		job.URL, job.Profile.Name,
+		job.Start, job.Duration, job.Media, job.Format, job.Fragmented)
 	hash := md5.Sum([]byte(data))
 	return hex.EncodeToString(hash[:])
 }
@@ -49,7 +45,7 @@ func GetFormatExtension(format Format) string {
 	switch format {
 	case MPEGTS:
 		return "ts"
-	case MPEG4:
+	case MP4:
 		return "mp4"
 	default:
 		return "mp4"
