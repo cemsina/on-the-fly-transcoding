@@ -11,11 +11,11 @@ type CacheItem struct {
 }
 
 type LRUCache struct {
-	capacity   int
-	items      map[string]*list.Element
-	order      *list.List
-	onEvicted  func(key, value string)
-	mu         sync.Mutex
+	capacity  int
+	items     map[string]*list.Element
+	order     *list.List
+	onEvicted func(key, value string)
+	mu        sync.Mutex
 	protected map[string]bool
 }
 
@@ -54,11 +54,13 @@ func (c *LRUCache) Put(key, value string) {
 		lastElem := c.order.Back()
 		if lastElem != nil {
 			lastItem := lastElem.Value.(*CacheItem)
-			if c.onEvicted != nil && !c.protected[lastItem.Key]{
-				c.onEvicted(lastItem.Key, lastItem.Value)
+			if !c.protected[lastItem.Key] {
+				if c.onEvicted != nil {
+					c.onEvicted(lastItem.Key, lastItem.Value)
+				}
+				delete(c.items, lastItem.Key)
+				c.order.Remove(lastElem)
 			}
-			delete(c.items, lastItem.Key)
-			c.order.Remove(lastElem)
 		}
 	}
 

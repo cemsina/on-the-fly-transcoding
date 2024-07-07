@@ -60,7 +60,7 @@ func Transcode(job Job) (string, error) {
 	} else {
 		args = append(args, outputFile)
 	}
-	
+
 	cmd := exec.Command("ffmpeg", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
