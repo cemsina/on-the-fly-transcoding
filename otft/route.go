@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/base64"
-	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -13,7 +12,7 @@ import (
 func RouteHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS, HEAD")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Range")
 	// Define regex patterns for the routes
 	segmentPattern := regexp.MustCompile(`^/([^/]+)/combined/(\d+)/(\d+x\d+)/(\d+(\.\d+)?:\d+(\.\d+)?)/segment\.(ts|mp4)$`)
 	videoInitPattern := regexp.MustCompile(`^/([^/]+)/video/(\d+)/(\d+x\d+)/init\.mp4$`)
@@ -22,29 +21,32 @@ func RouteHandler(w http.ResponseWriter, r *http.Request) {
 	audioSegmentPattern := regexp.MustCompile(`^/([^/]+)/audio/(\d+)/(\d+(\.\d+)?:\d+(\.\d+)?)/segment\.mp4$`)
 
 	path := r.URL.Path
-
+	var job Job
 	switch {
 	case segmentPattern.MatchString(path):
 		matches := segmentPattern.FindStringSubmatch(path)
-		handleSegment(w, matches)
+		job = handleSegment(matches)
 	case videoInitPattern.MatchString(path):
 		matches := videoInitPattern.FindStringSubmatch(path)
-		handleVideoInit(w, matches)
+		job = handleVideoInit(matches)
 	case audioInitPattern.MatchString(path):
 		matches := audioInitPattern.FindStringSubmatch(path)
-		handleAudioInit(w, matches)
+		job = handleAudioInit(matches)
 	case videoSegmentPattern.MatchString(path):
 		matches := videoSegmentPattern.FindStringSubmatch(path)
-		handleVideoSegment(w, matches)
+		job = handleVideoSegment(matches)
 	case audioSegmentPattern.MatchString(path):
 		matches := audioSegmentPattern.FindStringSubmatch(path)
-		handleAudioSegment(w, matches)
+		job = handleAudioSegment(matches)
 	default:
 		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
 	}
+
+	transcodeNServe(r, w, job)
 }
 
-func transcodeNServe(w http.ResponseWriter, job Job) {
+func transcodeNServe(r *http.Request, w http.ResponseWriter, job Job) {
 	jobID := job.ID()
 	cache.Protect(jobID)
 
@@ -62,14 +64,14 @@ func transcodeNServe(w http.ResponseWriter, job Job) {
 
 	select {
 	case filePath := <-done:
-		serveFile(w, filePath, job.Format)
+		serveFile(w, r, filePath, job.Format)
 		cache.Unprotect(jobID)
 	case err := <-errChan:
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func handleSegment(w http.ResponseWriter, matches []string) {
+func handleSegment(matches []string) Job {
 	job := Job{
 		URL:        decodeBase64URL(matches[1]),
 		Bitrate:    atoi(matches[2]),
@@ -83,10 +85,10 @@ func handleSegment(w http.ResponseWriter, matches []string) {
 		FPS:        25,
 	}
 
-	transcodeNServe(w, job)
+	return job
 }
 
-func handleVideoInit(w http.ResponseWriter, matches []string) {
+func handleVideoInit(matches []string) Job {
 	job := Job{
 		URL:        decodeBase64URL(matches[1]),
 		Bitrate:    atoi(matches[2]),
@@ -98,10 +100,10 @@ func handleVideoInit(w http.ResponseWriter, matches []string) {
 		FPS:        25,
 	}
 
-	transcodeNServe(w, job)
+	return job
 }
 
-func handleAudioInit(w http.ResponseWriter, matches []string) {
+func handleAudioInit(matches []string) Job {
 	job := Job{
 		URL:        decodeBase64URL(matches[1]),
 		Bitrate:    atoi(matches[2]),
@@ -113,10 +115,10 @@ func handleAudioInit(w http.ResponseWriter, matches []string) {
 		FPS:        25,
 	}
 
-	transcodeNServe(w, job)
+	return job
 }
 
-func handleVideoSegment(w http.ResponseWriter, matches []string) {
+func handleVideoSegment(matches []string) Job {
 	job := Job{
 		URL:        decodeBase64URL(matches[1]),
 		Bitrate:    atoi(matches[2]),
@@ -130,10 +132,10 @@ func handleVideoSegment(w http.ResponseWriter, matches []string) {
 		FPS:        25,
 	}
 
-	transcodeNServe(w, job)
+	return job
 }
 
-func handleAudioSegment(w http.ResponseWriter, matches []string) {
+func handleAudioSegment(matches []string) Job {
 	job := Job{
 		URL:        decodeBase64URL(matches[1]),
 		Bitrate:    atoi(matches[2]),
@@ -147,7 +149,7 @@ func handleAudioSegment(w http.ResponseWriter, matches []string) {
 		FPS:        25,
 	}
 
-	transcodeNServe(w, job)
+	return job
 }
 
 // Utility functions
@@ -182,7 +184,7 @@ func parseFormat(s string) Format {
 	return MPEG4
 }
 
-func serveFile(w http.ResponseWriter, filePath string, format Format) {
+func serveFile(w http.ResponseWriter, r *http.Request, filePath string, format Format) {
 	var contentType string
 	if format == MPEGTS {
 		contentType = "video/MP2T"
@@ -198,8 +200,11 @@ func serveFile(w http.ResponseWriter, filePath string, format Format) {
 	}
 	defer file.Close()
 
-	w.WriteHeader(http.StatusOK)
-	if _, err := io.Copy(w, file); err != nil {
-		http.Error(w, "Error serving file.", http.StatusInternalServerError)
+	stat, err := file.Stat()
+	if err != nil {
+		http.Error(w, "File stat error.", http.StatusInternalServerError)
+		return
 	}
+
+	http.ServeContent(w, r, filePath, stat.ModTime(), file)
 }
